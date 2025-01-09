@@ -1,0 +1,170 @@
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: test-on-hw 
+  annotations:
+    # The event we are targeting as seen from the webhook payload
+    # this can be an array too, i.e: [pull_request, push]
+    pipelinesascode.tekton.dev/on-event: "[pull_request, push]"
+
+    # The branch or tag we are targeting (ie: main, refs/tags/*)
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+
+    # Fetch the git-clone task from hub, we are able to reference later on it
+    # with taskRef and it will automatically be embedded into our pipeline.
+    pipelinesascode.tekton.dev/task: "[git-clone]"
+    pipelinesascode.tekton.dev/task-1: ".tekton/tasks/build-image.yaml"
+    pipelinesascode.tekton.dev/task-2: ".tekton/tasks/jumpstarter-request-lease.yaml"
+    pipelinesascode.tekton.dev/task-3: ".tekton/tasks/jumpstarter-release-lease.yaml"
+    pipelinesascode.tekton.dev/task-4: ".tekton/tasks/jumpstarter-run-command.yaml"
+
+    # How many runs we want to keep.
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  params:
+    # The variable with brackets are special to Pipelines as Code
+    # They will automatically be expanded with the events from Github.
+    - name: repo_url
+      value: "{{ repo_url }}"
+    - name: revision
+      value: "{{ revision }}"
+  pipelineSpec:
+    params:
+      - name: repo_url
+      - name: revision
+    workspaces:
+      - name: jumpstarter-client-secret
+        workspace: jumpstarter-client-secret
+      - name: sources
+        workspace: sources
+    finally:
+      - name: release
+        params:
+          - name: jmpLease
+            value: $(tasks.lease.results.jmpLease)
+        taskRef:
+          kind: Task
+          name: jumpstarter-release-lease
+        workspaces:
+          - name: jumpstarter-client-secret
+            workspace: jumpstarter-client-secret
+    tasks:
+      - name: git-clone
+        params:
+          - name: url
+            value: $(params.repo_url)
+          - name: revision
+            value: $(params.revision)
+          - name: refspec
+            value: ''
+          - name: submodules
+            value: 'true'
+          - name: depth
+            value: '1'
+          - name: sslVerify
+            value: 'true'
+          - name: crtFileName
+            value: ca-bundle.crt
+          - name: subdirectory
+            value: ''
+          - name: sparseCheckoutDirectories
+            value: ''
+          - name: deleteExisting
+            value: 'true'
+          - name: httpProxy
+            value: ''
+          - name: httpsProxy
+            value: ''
+          - name: noProxy
+            value: ''
+          - name: verbose
+            value: 'true'
+          - name: gitInitImage
+            value: 'registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:dd5c8d08d52e304a542921634ebe6b5ff3d63c5f68f6d644e88417859b173ec8'
+          - name: userHome
+            value: /home/git
+        taskRef:
+          kind: ClusterTask
+          name: git-clone
+        workspaces:
+          - name: output
+            workspace: sources
+      - name: build-image
+        params:
+          - name: sshSecretName
+            value: ssh-key
+        runAfter:
+          - git-clone
+        taskRef:
+          kind: Task
+          name: build-image
+        workspaces:
+          - name: sources
+            workspace: sources
+      - name: lease
+        params:
+          - name: labelMatches
+            value:
+              - board=orin-nx
+          - name: timeout
+            value: '600'
+          - name: leaseSeconds
+            value: '1800'
+        runAfter:
+          - build-image
+        taskRef:
+          kind: Task
+          name: jumpstarter-request-lease
+        workspaces:
+          - name: jumpstarter-client-secret
+            workspace: jumpstarter-client-secret
+      - name: write-dut-storage
+        params:
+          - name: jmpLease
+            value: $(tasks.lease.results.jmpLease)
+          - name: jScript
+            value: j interface storage write-local-file disk.raw
+        runAfter:
+          - lease
+        taskRef:
+          kind: Task
+          name: jumpstarter-run-command
+        workspaces:
+          - name: jumpstarter-client-secret
+            workspace: jumpstarter-client-secret
+          - name: sources
+            workspace: sources
+      - name: run-tests
+        params:
+          - name: jmpLease
+            value: $(tasks.lease.results.jmpLease)
+          - name: jScript
+            value: VIRTUAL_ENV=/jumpstarter uv pip install pytest && DEBUG_CONSOLE=1 pytest
+        runAfter:
+          - write-dut-storage
+        taskRef:
+          kind: Task
+          name: jumpstarter-run-command
+        workspaces:
+          - name: jumpstarter-client-secret
+            workspace: jumpstarter-client-secret
+          - name: sources
+            workspace: sources
+
+  workspaces:
+    - name: jumpstarter-client-secret
+      secret:
+        secretName: jumpstarter-client-credentials
+    - name: sources
+      volumeClaimTemplate:
+        metadata:
+          creationTimestamp: null
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 12Gi
+          storageClassName: lvms-vg-spinning
+          volumeMode: Filesystem

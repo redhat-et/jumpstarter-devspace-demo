@@ -1,5 +1,5 @@
 disk.raw:
-	scp majopela@192.168.1.159:~/disk.raw .
+	scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null majopela@192.168.1.159:~/disk.raw .
 
 build: disk.raw
 

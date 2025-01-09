@@ -1,0 +1,33 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: jumpstarter-run-command
+spec:
+  params:
+    - description: The Lease ID we want to release
+      name: jmpLease
+      type: string
+    - description: Commands to run
+      name: jScript
+      type: string
+  steps:
+    - computeResources: {}
+      image: 'quay.io/jumpstarter-dev/jumpstarter:latest'
+      name: jmp-run-command 
+      script: |
+        set -euxo pipefail
+        jmp use default
+        export JMP_LEASE=$(params.jmpLease)
+        echo "running: $(params.jScript)"
+        cd /workspace/sources
+        ls -la
+        jmp shell <<-EOF
+          $(params.jScript)
+        EOF
+  workspaces:
+    - description: Workspace to mount the Jumpstarter client file
+      mountPath: /root/.config/jumpstarter/clients
+      name: jumpstarter-client-secret
+      readOnly: true
+    - description: Workspace containing the source code / built images
+      name: sources

@@ -1,0 +1,46 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: build-image
+spec:
+  params:
+    - default: my-ssh-secret
+      description: Name of the SSH private key secret
+      name: sshSecretName
+      type: string
+  steps:
+    - computeResources: {}
+      image: 'fedora:41'
+      name: configure-ssh-and-build
+      script: |
+        #!/usr/bin/env bash
+        set -euxo pipefail
+
+        # 1. Configure SSH
+        mkdir -p ~/.ssh
+        # Copy private key from the secret
+        cp /ssh-key/id_rsa ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
+        # If your secret also includes a known_hosts file, copy it
+        if [ -f /ssh-key/known_hosts ]; then
+          cp /ssh-key/known_hosts ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+        fi
+
+        # 2. Move into the source workspace and run make build
+        cd /workspace/sources
+        dnf install -y make openssh-clients
+        make build
+      volumeMounts:
+        - mountPath: /ssh-key
+          name: ssh-secret
+          readOnly: true
+  volumes:
+    - name: ssh-secret
+      secret:
+        secretName: $(params.sshSecretName)
+  workspaces:
+    - description: Workspace containing the source code
+      name: sources
+

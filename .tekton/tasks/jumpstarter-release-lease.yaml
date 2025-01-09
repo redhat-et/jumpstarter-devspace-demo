@@ -1,0 +1,23 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: jumpstarter-release-lease
+spec:
+  params:
+    - description: The Lease ID we want to release
+      name: jmpLease
+      type: string
+  steps:
+    - computeResources: {}
+      image: 'quay.io/jumpstarter-dev/jumpstarter:latest'
+      name: jmp-release-lease
+      script: |
+        set -eux
+        jmp use default
+        jmp lease release -l $(params.jmpLease)
+  workspaces:
+    - description: Workspace to mount the Jumpstarter client file
+      mountPath: /root/.config/jumpstarter/clients
+      name: jumpstarter-client-secret
+      readOnly: true
+

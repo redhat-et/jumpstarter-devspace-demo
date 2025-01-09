@@ -1,0 +1,53 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: jumpstarter-request-lease
+spec:
+  params:
+    - description: A list of label exporter matches in the form key=value
+      name: labelMatches
+      type: array
+    - description: How low should we wait for some exporter to be available
+      name: timeout
+      type: string
+    - default: '1800'
+      description: How long should the lease last if we don't release earlier
+      name: leaseSeconds
+      type: string
+  results:
+    - description: The Lease ID from Jumpstarter
+      name: jmpLease
+      type: string
+  steps:
+    - args:
+        - '$(params.labelMatches[*])'
+      computeResources: {}
+      image: 'quay.io/jumpstarter-dev/jumpstarter:latest'
+      name: jmp-request-lease
+      script: |
+        set -eux
+        jmp use default
+
+        # Construct the lease request command with label matches
+        LEASE_CMD="jmp lease request"
+
+        for label in "$@"; do
+        # label is something like "board=orin-nx"
+          KEY="$(echo "$label" | cut -d= -f1)"
+          VAL="$(echo "$label" | cut -d= -f2)"
+          LEASE_CMD="$LEASE_CMD -l $KEY $VAL"
+        done
+
+        #Commands still not supported by jmp lease request
+        #LEASE_CMD="$LEASE_CMD --timeout $(params.timeout) --lease-seconds $(params.leaseSeconds)"
+
+        echo "Running lease command: $LEASE_CMD"
+
+        JMP_LEASE=$($LEASE_CMD)
+
+        echo -n "$JMP_LEASE" > /tekton/results/jmpLease
+  workspaces:
+    - description: Workspace to mount the Jumpstarter client file
+      mountPath: /root/.config/jumpstarter/clients
+      name: jumpstarter-client-secret
+      readOnly: true

@@ -17,6 +17,9 @@ boot:
 console:
 	j interface console start-console
 
+video:
+	./video_stream.py
+
 boot-console: boot console
 
 .PHONY: flash build boot boot-console console

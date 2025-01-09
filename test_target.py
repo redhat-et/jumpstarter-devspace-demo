@@ -28,16 +28,6 @@ class TestExample(JumpstarterTest):
     def test_boot_image(self, client):
         # at this point the target is booted, we just take the image
         #image = client.video.snapshot()
-        #image.save("test.jpg")
+        #image.save("expected.jpg")
         hasher = ImageHash(client.video)
-        hasher.assert_snapshot("test.jpg")
-
-    def test_video_boot(self, client):
-        client.interface.power.off()
-        time.sleep(1)
-        client.interface.storage.dut()
-        client.interface.power.on()
-        for _ in range(240):
-            img = client.video.snapshot()
-            img.save("video.jpg")
-            time.sleep(0.2)
+        hasher.assert_snapshot("expected.jpg")

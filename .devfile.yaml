@@ -10,7 +10,7 @@ projects:
   - name: jumpstarter
     git:
       remotes:
-        origin: https://github.com/jumpstarter-dev/jumpstarter-devspace.git
+        origin: https://github.com/redhat-et/jumpstarter-devspace-demo.git
 components:
    - name: runtime
      container:

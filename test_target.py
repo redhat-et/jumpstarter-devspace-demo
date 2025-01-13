@@ -31,3 +31,7 @@ class TestExample(JumpstarterTest):
         #image.save("expected.jpg")
         hasher = ImageHash(client.video)
         hasher.assert_snapshot("expected.jpg")
+
+    def test_devices_in_place(self, client, console):
+        console.sendline("ls /dev/nv*")
+        console.expect("/dev/nvhost-gpu")

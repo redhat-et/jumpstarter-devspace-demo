@@ -26,10 +26,10 @@ spec:
       name: jmp-request-lease
       script: |
         set -eux
-        jmp use default
+        jmp client use-config default
 
         # Construct the lease request command with label matches
-        LEASE_CMD="jmp lease request"
+        LEASE_CMD="jmp client lease request"
 
         for label in "$@"; do
         # label is something like "board=orin-nx"

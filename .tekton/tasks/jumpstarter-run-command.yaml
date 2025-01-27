@@ -13,15 +13,15 @@ spec:
   steps:
     - computeResources: {}
       image: 'quay.io/jumpstarter-dev/jumpstarter:latest'
-      name: jmp-run-command 
+      name: jmp-run-command
       script: |
         set -euxo pipefail
-        jmp use default
+        jmp client use-config default
         export JMP_LEASE=$(params.jmpLease)
         echo "running: $(params.jScript)"
-        cd /workspace/sources
+        cd /workspace/source
         ls -la
-        jmp shell <<-EOF
+        jmp client shell <<-EOF
           $(params.jScript)
         EOF
   workspaces:
@@ -30,4 +30,4 @@ spec:
       name: jumpstarter-client-secret
       readOnly: true
     - description: Workspace containing the source code / built images
-      name: sources
+      name: source

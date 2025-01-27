@@ -13,11 +13,10 @@ spec:
       name: jmp-release-lease
       script: |
         set -eux
-        jmp use default
-        jmp lease release -l $(params.jmpLease)
+        jmp client use-config default
+        jmp client lease release -l $(params.jmpLease)
   workspaces:
     - description: Workspace to mount the Jumpstarter client file
       mountPath: /root/.config/jumpstarter/clients
       name: jumpstarter-client-secret
       readOnly: true
-

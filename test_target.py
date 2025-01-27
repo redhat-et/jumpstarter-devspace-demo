@@ -3,14 +3,13 @@ import sys
 import time
 import pytest
 
-from jumpstarter.testing.pytest import JumpstarterTest
-from jumpstarter.client.adapters import PexpectAdapter
+from jumpstarter_testing.pytest import JumpstarterTest
 from jumpstarter_imagehash import ImageHash
 
 class TestExample(JumpstarterTest):
     @pytest.fixture()
     def console(self, client):
-        with PexpectAdapter(client=client.interface.console) as console:
+        with client.interface.console.pexpect() as console:
             if os.environ.get("DEBUG_CONSOLE"):
                 console.logfile_read = sys.stdout.buffer
             yield console
